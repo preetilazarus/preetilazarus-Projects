@@ -1,0 +1,488 @@
+---
+title: "CitiBike Master Script"
+author: "Group 5"
+date: "November-13-2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+Use control+Enter to run the code chunks on PC.
+Use  command+Enter to run the code chunks on MAC.
+
+## Load Packages
+
+In this section, we install and load the necessary packages. 
+
+```{r libraries, message=FALSE, include = FALSE}
+### Install packages. If you haven't install the following package, please uncomment the line below to install it. Then, comment it back before knitting the document.
+#install.packages('dplyr') # required only once.
+#install.packages("ggplot2")
+
+### load libraries for use in current working session
+library('dplyr')
+library('ggplot2')
+library('class') # to run KNN
+library('ROSE') # to generate ROC
+
+```
+
+## Import Data
+
+In this section, we import the necessary data for this lab.
+
+```{r import, include=FALSE}
+### set your working directory
+# use setwd to set your working directory
+
+# you can also go to session-> set working directory -> choose directory
+# working directory is the path to the folder and not file
+# make sure the path of the directory is correct, i.e., where you have stored your data
+
+setwd("~/Library/Mobile Documents/com~apple~CloudDocs/icloud/الابتعاث/Studying/Master/first Q/MGT585/Data")
+
+### import data file
+# read the files using read.csv
+citi_bike = read.csv(file = "citibikeDemand.csv")
+population = read.csv(file  = "population.csv")
+
+```
+
+## Analyse Data
+
+In this section, we analyse the data.
+
+```{r chunk1_analysedataset}
+
+# View the data and examine the dataset using 5 functions (dim, colnames, str, head, tail)
+dim(citi_bike)
+colnames(citi_bike)
+str(citi_bike)
+head(citi_bike)
+tail(citi_bike)
+
+# Convert the required columns to factor
+citi_bike$DayOfWeek = as.factor(citi_bike$DayOfWeek)
+citi_bike$DemandTime = as.factor(citi_bike$DemandTime)
+
+
+
+citi_bike$DayOfWeek = as.factor(citi_bike$DayOfWeek)
+citi_bike$DemandDate <- as.character(citi_bike$DemandDate)
+citi_bike$StartStationId = as.factor(citi_bike$StartStationId)
+citi_bike$EndStationId = as.factor(citi_bike$EndStationId)
+citi_bike$DemandDate = as.factor(citi_bike$DemandDate)
+str(citi_bike)
+
+
+# Mean and standard deviation 
+
+citi_bike %>% summarise(mean_demandt = mean(Demand), sd_demand = sd(Demand))
+
+citi_bike %>% group_by(DayOfWeek) %>% 
+              summarise(mean_dayofweek = mean(Demand),
+                        sd_dayofweek = sd(Demand))
+
+citi_bike %>% group_by(DemandTime) %>%
+              summarise(mean_demandtime = mean(Demand),
+                        sd_demandtime = sd(Demand))
+
+citi_bike %>% group_by(DemandTime) %>% summarise(mean = mean(Demand), sd = sd(Demand))
+
+# Compute summary statistics for example for TripDuration, StartPerCapitaIncome, EndPerCapitaIncome, StartPctHouseholdsNoVehicle, EndPctHouseholdsNoVehicle
+
+TripDuration = citi_bike %>% group_by(DemandTime) %>% summarise(mean = mean(TripDurationMinutes),sd = sd(TripDurationMinutes), min=min(TripDurationMinutes), max=max(TripDurationMinutes),var = var(TripDurationMinutes, na.rm = TRUE))
+TripDuration
+
+summary(citi_bike$Temperature)
+
+#StartPerCapitaIncome
+spci = citi_bike %>% group_by(DemandTime) %>%
+                     summarise(mean = mean(StartPerCapitaIncome, na.rm = TRUE),
+                               sd = sd(StartPerCapitaIncome, na.rm = TRUE),
+                               min=min(StartPerCapitaIncome, na.rm = TRUE),
+                               max=max(StartPerCapitaIncome, na.rm = TRUE),
+                               var = var(StartPerCapitaIncome, na.rm = TRUE))
+spci
+
+#EndPerCapitaIncome
+epci = citi_bike %>%  group_by(DemandTime) %>% 
+                      summarise(mean = mean(EndPerCapitaIncome, na.rm = TRUE),
+                                                        sd = sd(EndPerCapitaIncome, na.rm = TRUE), 
+                                                        min=min(EndPerCapitaIncome, na.rm = TRUE), 
+                                                        max=max(EndPerCapitaIncome, na.rm = TRUE), 
+                                                        var = var(EndPerCapitaIncome, na.rm = TRUE))
+epci
+
+#StartPctHouseholdsNoVehicle
+Startpct = citi_bike %>%  group_by(DemandTime) %>% 
+                          summarise(mean = mean(StartPctHouseholdsNoVehicle, na.rm = TRUE),
+                                    sd = sd(StartPctHouseholdsNoVehicle, na.rm = TRUE),
+                                    min=min(StartPctHouseholdsNoVehicle, na.rm = TRUE),
+                                    max=max(StartPctHouseholdsNoVehicle, na.rm = TRUE),
+                                    var = var(StartPctHouseholdsNoVehicle, na.rm = TRUE))
+Startpct
+
+#EndPctHouseholdsNoVehicle
+Endpct = citi_bike %>%  group_by(DemandTime) %>% 
+                        summarise(mean = mean(EndPctHouseholdsNoVehicle, na.rm =  TRUE),
+                                  sd = sd(EndPctHouseholdsNoVehicle, na.rm = TRUE),
+                                  min=min(EndPctHouseholdsNoVehicle, na.rm = TRUE),
+                                  max=max(EndPctHouseholdsNoVehicle, na.rm = TRUE),
+                                  var = var(EndPctHouseholdsNoVehicle, na.rm = TRUE))
+Endpct
+
+citi_bike %>% group_by(DemandTime) %>% summarise(mean = mean(Demand), sd = sd(Demand))
+
+citi_bike %>% filter(DistanceMiles == max(DistanceMiles)) %>% select(StartStationName,EndStationName)
+
+
+# Correlation between Demand & Temperature
+citi_bike %>% group_by(DemandTime) %>% summarise(cor=cor(Demand,Temperature, use = "complete.obs"))
+
+ citi_bike %>% group_by(DayOfWeek) %>% summarise(cor=cor(Demand,Temperature, use = "complete.obs"))
+ 
+```
+
+
+## Descriptive Analysis
+
+In this section, we will create graphs and see patterns in the data.
+
+```{r chunk2_descriptive}
+
+# Plot Demand by DayOfWeek , Month, Customer_prop, DemandTime, etc.
+
+# DayofWeek vs Demand
+
+#Bar chart for Demand by Day of the week, distributed with DemandTime
+
+citi_bike$DayOfWeek <- ordered(citi_bike$DayOfWeek, levels=c("Monday", "Tuesday", "Wednesday", "Thursday",
+"Friday", "Saturday", "Sunday"))
+
+ggplot(citi_bike, aes(x = DayOfWeek, y = Demand, fill = DemandTime)) +
+  geom_bar(stat = "identity")
+
+# DemandTime vs Demand
+ggplot(citi_bike, aes(x=DemandTime, y=Demand)) + 
+  geom_line(stat='identity', color = 'Green') +
+  scale_y_continuous(breaks=seq(0,300,50)) +
+  xlab("Demand Time") +
+  ylab("Demand") + 
+  ggtitle("Demand Distribution by Demand time")
+
+# Month vs Demand
+
+groupbymonth = citi_bike %>% group_by(Month) %>% summarize(Monthlydemand = sum(Demand))
+
+ggplot(groupbymonth, aes(x=Month, y=Monthlydemand)) + 
+  geom_point(stat = 'identity') + scale_x_continuous(breaks=seq(0,12,1)) + 
+  geom_smooth(stat="identity", method = "lm") +
+  xlab("Month") +
+  ylab("Demand") + 
+  ggtitle("Monthly Demand Distribution")
+
+# Customer_prop vs Demand
+# Changing the Customer_prop Column to % by multiplying by 100
+
+citi_bike$Customerprop100 = citi_bike$Customer_prop*100
+
+ggplot(citi_bike, aes(x=Customerprop100, y=Demand)) + 
+  geom_line(stat='identity', color = 'red') + 
+  scale_x_continuous(breaks=seq(0,50,5)) +
+  xlab("Customer Proportion") +
+  ylab("Demand") + 
+  ggtitle("Demand Distribution by Customer Proportion")
+
+# Temperature vs Customer proportion
+ggplot(citi_bike,aes(x=Temperature, y=Customerprop100,color = Temperature)) + 
+  geom_point() + 
+  scale_x_continuous(breaks=seq(20,90,10)) +
+  xlab("Temperature") +
+  ylab("Customer Proportion") + 
+  ggtitle("Customer Proportion by Temperature")
+
+# Replace Missing Val of EndPerCapitaIncome by the mean 
+summary(citi_bike$EndPerCapitaIncome)
+# There are 704 NAs
+y = citi_bike$EndPerCapitaIncome
+# Replace na with the mean
+y[is.na(y)] = mean(y, na.rm = TRUE)
+summary(y)
+
+ggplot(citi_bike , mapping = aes(x = Demand , y = StartPerCapitaIncome )) + 
+  geom_point() +
+  geom_smooth(method = "lm",se = FALSE, colour = "red") +
+  xlab("Demand")  +
+  ylab("Start Per Capita Income") + 
+  ggtitle("")
+
+ggplot(citi_bike , mapping = aes(x = Demand , y = EndPerCapitaIncome )) + 
+  geom_point() +
+  geom_smooth(method = "lm",se = FALSE, colour = "red") +
+  xlab("Demand") +
+  ylab("End Per Capita Income") + 
+  ggtitle("")
+
+ggplot(citi_bike , mapping = aes(x = Demand , y = Temperature )) + 
+  geom_point() +
+  geom_smooth(method = "lm",se = FALSE, colour = "red") +
+  xlab("Demand") +
+  ylab("Temperature") +
+  ggtitle("")
+
+```
+
+## Predictive Analysis
+
+In this section, we will create regression model based on the data.
+
+```{r chunk3_predictive}
+  
+# The 5 stations that we choose had the highest demand based on: 519 , 402, 426, 435 , 497
+# Check here
+StartNeighborhood_demand2 = citi_bike %>% 
+  group_by(StartStationId,StartStationName,StartNeighborhood,EndStationName,EndStationId) %>% select(Demand,DemandTime,StartStationId,StartStationName,StartNeighborhood,EndStationName,EndStationId)
+
+StartNeighborhood_demand2 %>% 
+  group_by(StartStationId,StartStationName,StartNeighborhood,EndStationName,EndStationId)%>% 
+  select(Demand, DemandTime,StartStationId,StartStationName,StartNeighborhood,EndStationName,EndStationId)
+
+#regression for demand as response and DemandTime, StartStationID , EndStationId, and Temperture as predictors, to predict the rips
+
+reg_full = lm(Demand~ Temperature + DayOfWeek + DemandTime + StartStationId + EndStationId  , data = citi_bike )
+summary(reg_full)
+
+#This regression is fit enough since the R-squared is 89% and F-statistic < 0.05
+
+#We Choose to pridict for this day May 25 2019 where the temperature will be around 70 "we found it an online" and the day will be Saturday 
+
+#station 519, daytime, 70 degree
+
+rate_new_519 <- data.frame(DemandTime= "daytime" , StartStationId= "519" , EndStationId= "519" , Temperature = 70, DayOfWeek = "Saturday" )
+predict(reg_full, newdata= rate_new_519)
+
+rate_new_519 <- data.frame(DemandTime= "daytime" , StartStationId= "519" , EndStationId= "402" , Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_519)
+
+rate_new_519  <- data.frame(DemandTime= "daytime" , StartStationId= "519" , EndStationId= "435" , Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_519)
+
+rate_new_519 <- data.frame(DemandTime= "daytime" , StartStationId= "519" , EndStationId= "426" , Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_519)
+
+rate_new_519 <- data.frame(DemandTime= "daytime" , StartStationId= "519" , EndStationId= "497", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_519)
+
+#station 402 day time, 70 degree
+
+rate_new_402 <- data.frame(DemandTime= "daytime" , StartStationId= "402" , EndStationId= "402", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_402)
+
+rate_new_402 <- data.frame(DemandTime= "daytime" , StartStationId= "402" , EndStationId= "519", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata=rate_new_402)
+
+rate_new_402 <- data.frame(DemandTime= "daytime" , StartStationId= "402" , EndStationId= "435", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_402)
+
+rate_new_402 <- data.frame(DemandTime= "daytime" , StartStationId= "402" , EndStationId= "426", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_402)
+
+rate_new_402 <- data.frame(DemandTime= "daytime" , StartStationId= "402" , EndStationId= "497", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_402)
+
+
+
+#station 435 day time, 70 degree
+
+rate_new_435 <- data.frame(DemandTime= "daytime" , StartStationId= "435" , EndStationId= "435", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_435)
+
+rate_new_435 <- data.frame(DemandTime= "daytime" , StartStationId= "435" , EndStationId= "519", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata=rate_new_435)
+
+rate_new_435 <- data.frame(DemandTime= "daytime" , StartStationId= "435" , EndStationId= "402", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_435)
+
+rate_new_435 <- data.frame(DemandTime= "daytime" , StartStationId= "435" , EndStationId= "426", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_435)
+
+rate_new_435 <- data.frame(DemandTime= "daytime" , StartStationId= "435" , EndStationId= "497", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_435)
+
+
+#station 426 day time, 70 degree
+
+rate_new_426 <- data.frame(DemandTime= "daytime" , StartStationId= "426" , EndStationId= "426", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_426)
+
+rate_new_426 <- data.frame(DemandTime= "daytime" , StartStationId= "426" , EndStationId= "519", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata=rate_new_426)
+
+rate_new_426 <- data.frame(DemandTime= "daytime" , StartStationId= "426" , EndStationId= "402", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_426)
+
+rate_new_426 <- data.frame(DemandTime= "daytime" , StartStationId= "426" , EndStationId= "435", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_426)
+
+rate_new_426<- data.frame(DemandTime= "daytime" , StartStationId= "426" , EndStationId= "497", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_426)
+
+#station 497 day time, 70 degree
+
+rate_new_497 <- data.frame(DemandTime= "daytime" , StartStationId= "497" , EndStationId= "497", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_497)
+
+rate_new_497 <- data.frame(DemandTime= "daytime" , StartStationId= "497" , EndStationId= "519", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata=rate_new_497)
+
+rate_new_497 <- data.frame(DemandTime= "daytime" , StartStationId= "497" , EndStationId= "402", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_497)
+
+rate_new_497 <- data.frame(DemandTime= "daytime" , StartStationId= "497" , EndStationId= "435", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_497)
+
+rate_new_497<- data.frame(DemandTime= "daytime" , StartStationId= "497" , EndStationId= "426", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_497)
+
+
+
+#station 519 evening, 70 degree
+
+rate_new_519e <- data.frame(DemandTime= "evening" , StartStationId= "519" , EndStationId= "519", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_519e)
+
+rate_new_519e <- data.frame(DemandTime= "evening" , StartStationId= "519" , EndStationId= "402", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_519e)
+
+rate_new_519e <- data.frame(DemandTime= "evening" , StartStationId= "519" , EndStationId= "435", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_519e)
+
+rate_new_519e <- data.frame(DemandTime= "evening" , StartStationId= "519" , EndStationId= "426", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_519e)
+
+rate_new_519e <- data.frame(DemandTime= "evening" , StartStationId= "519" , EndStationId= "497", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_519e)
+
+
+
+#station 402 evening , 70 degree
+
+rate_new_402e <- data.frame(DemandTime= "evening" , StartStationId= "402" , EndStationId= "402" , Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_402e)
+
+rate_new_402e <- data.frame(DemandTime= "evening" , StartStationId= "402" , EndStationId= "519", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata=rate_new_402e)
+
+rate_new_402e <- data.frame(DemandTime= "evening" , StartStationId= "402" , EndStationId= "435", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_402e)
+
+rate_new_402e <- data.frame(DemandTime= "evening" , StartStationId= "402" , EndStationId= "426", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_402e)
+
+rate_new_402e <- data.frame(DemandTime= "evening" , StartStationId= "402" , EndStationId= "497", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_402e)
+
+#station 435 evening , 70 degree
+rate_new_435e <- data.frame(DemandTime= "evening" , StartStationId= "435" , EndStationId= "435", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_435e)
+
+rate_new_435e <- data.frame(DemandTime= "evening" , StartStationId= "435" , EndStationId= "519", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata=rate_new_435e)
+
+rate_new_435e <- data.frame(DemandTime= "evening" , StartStationId= "435" , EndStationId= "402", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_435e)
+
+rate_new_435e <- data.frame(DemandTime= "evening" , StartStationId= "435" , EndStationId= "426", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_435e)
+
+rate_new_435e <- data.frame(DemandTime= "evening" , StartStationId= "435" , EndStationId= "497", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_435e)
+
+#station 426 evening , 70 degree
+rate_new_426e <- data.frame(DemandTime= "evening" , StartStationId= "426" , EndStationId= "426", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_426e)
+
+rate_new_426e <- data.frame(DemandTime= "evening" , StartStationId= "426" , EndStationId= "519", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata=rate_new_426e)
+
+rate_new_426e <- data.frame(DemandTime= "evening" , StartStationId= "426" , EndStationId= "402", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_426e)
+
+rate_new_426e <- data.frame(DemandTime= "evening" , StartStationId= "426" , EndStationId= "435", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_426e)
+
+rate_new_426e<- data.frame(DemandTime= "evening" , StartStationId= "426" , EndStationId= "497", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_426e)
+
+#station 497 evening , 70 degree
+
+rate_new_497e <- data.frame(DemandTime= "evening" , StartStationId= "497" , EndStationId= "497", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_497e)
+
+rate_new_497e <- data.frame(DemandTime= "evening" , StartStationId= "497" , EndStationId= "519", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata=rate_new_497e)
+
+rate_new_497e <- data.frame(DemandTime= "evening" , StartStationId= "497" , EndStationId= "402", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_497e)
+
+rate_new_497e <- data.frame(DemandTime= "evening" , StartStationId= "497" , EndStationId= "435", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_497e)
+
+rate_new_497e <- data.frame(DemandTime= "evening" , StartStationId= "497" , EndStationId= "426", Temperature = 70, DayOfWeek = "Saturday")
+predict(reg_full, newdata= rate_new_497e)
+
+```
+
+
+
+```{r chunk4_predictive}
+#Create training and testing set
+set.seed(1234) 
+
+# We will use 80:20 split ratio (most common) which means 80% of the data is training and 20% is test data
+smp_size <- floor(0.80 * nrow(citi_bike))
+train_data <- sample(seq_len(nrow(citi_bike)), size = smp_size)
+train <- citi_bike[train_data, ]
+test <- citi_bike[-train_data, ]
+```
+
+
+```{r chunk5_predictive}
+# Logistic regression analysis Demand, start station id , end station id as predictors and Investor_type as the response
+log_reg = glm(DemandTime ~ Demand  , family = binomial, data = train )
+summary(log_reg)
+```
+
+
+```{r chunk6_predictive}
+logprobs = predict(log_reg, test, type = "response")
+
+logpred = ifelse(logprobs>0.5, "evening","daytime")
+
+table(test$DemandTime, logpred)
+
+#accuracy
+mean(test$DemandTime == logpred)
+
+sum(test$DemandTime == "daytime" & logpred == "daytime")/sum(test$DemandTime== "daytime")
+
+sum(test$DemandTime == "evening" & logpred == "evening")/sum(test$DemandTime== "evening")
+
+roc.curve(test$DemandTime, logpred )
+```
+
